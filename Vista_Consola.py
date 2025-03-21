@@ -106,8 +106,10 @@ class VistaConsola:
         print("="*70)
 
     def solicitar_pruebas(self):
-        n_neurons = 4  # Default number of neurons
+        n_neurons = 4
         n_vars = 2
+        learning_rate = float(input("Learning rate para descenso de gradiente (por defecto 1.0): ") or "1.0")
+        sigma = float(input("Valor de sigma para RBF (por defecto 0.5): ") or "0.5")
         operaciones = [
             ('cuadrado', 0, 1.0),      # x^2
             ('cuadrado', 1, 1.0),      # + y^2
@@ -117,12 +119,15 @@ class VistaConsola:
         print("Funciones disponibles antes de agregar nueva función:")
         self.mostrar_funciones()
         
-        X_test, pred_pseudo, pred_gradient, valores_reales = self.controlador.ejecutar_pruebas(n_vars, operaciones, n_neurons)
+        X_test, pred_pseudo, pred_gradient, valores_reales = self.controlador.ejecutar_pruebas(
+            n_vars, operaciones, n_neurons, learning_rate, sigma)
         
         if X_test is None:
             print("Error al crear la red")
             return
             
+        # Mostrar resultados completos
+        self.print_resultados(pred_pseudo, pred_gradient, valores_reales, X_test, operaciones)
         self.controlador.mostrar_historial_entrenamiento()
 
     def mostrar_funciones(self):
@@ -134,6 +139,8 @@ class VistaConsola:
         nombre = input("Nombre de la nueva función: ")
         n_operaciones = int(input("Número de operaciones: "))
         n_neurons = int(input("Número de neuronas RBF (recomendado 3-10): "))
+        learning_rate = float(input("Learning rate para descenso de gradiente (por defecto 1.0): ") or "1.0")
+        sigma = float(input("Valor de sigma para RBF (por defecto 0.5): ") or "0.5")
         operaciones = []
         vars_used = set()
         
@@ -187,7 +194,8 @@ class VistaConsola:
         self.controlador.crear_funcion(nombre, operaciones)
         print(f"\nFunción creada: {self.controlador.mostrar_funcion(operaciones)}")
         
-        X_test, pred_pseudo, pred_gradient, valores_reales = self.controlador.ejecutar_pruebas(n_vars, operaciones, n_neurons)
+        X_test, pred_pseudo, pred_gradient, valores_reales = self.controlador.ejecutar_pruebas(
+            n_vars, operaciones, n_neurons, learning_rate, sigma)
         
         if X_test is not None:
             self.print_resultados(pred_pseudo, pred_gradient, valores_reales, X_test, operaciones)

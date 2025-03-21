@@ -22,7 +22,7 @@ class Controlador:
         """Retorna representación de la función"""
         return self.experto_funciones.mostrar_funcion(operaciones)
 
-    def ejecutar_pruebas(self, n_vars, operaciones, n_neurons=5):
+    def ejecutar_pruebas(self, n_vars, operaciones, n_neurons=5, learning_rate=1.0, sigma=0.5):
         # Validar número mínimo de neuronas y no multiplicar por dimensiones
         n_neurons = max(2, min(n_neurons, 10))  # Entre 2 y 10 neuronas total
         
@@ -40,12 +40,12 @@ class Controlador:
         X_test = np.array([np.linspace(-2, 2, 5) for _ in range(n_vars)]).T
         
         self.red = RBF(n_neurons=n_neurons, input_dim=n_vars,
-                      target_function=funcion1, sigma=None)
+                      target_function=funcion1, sigma=sigma)
 
         self.red.calcular_pseudoInversa(X_test)
         pred_pseudo = self.red.predict(X_test)
 
-        self.red.train_gradient_descent(X_test, learning_rate=0.01, epochs=1000)
+        self.red.train_gradient_descent(X_test, learning_rate=learning_rate, epochs=1000)
         pred_gradient = self.red.predict(X_test)
 
         valores_reales = funcion1(X_test)
