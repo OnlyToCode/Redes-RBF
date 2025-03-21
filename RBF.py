@@ -2,18 +2,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def gaussian_rbf_matrix(X, centers, sigma):
+    """Calcula la matriz de activaciones RBF manteniendo independencia dimensional"""
     n_samples = X.shape[0]
     n_centers = centers.shape[0]
+    n_dims = X.shape[1]
+    
     # verificaciones:
     assert n_samples > 0, "No hay muestras de entrada"
     assert n_centers > 0, "No hay centros definidos"
-    # Reshape para hacer broadcasting
-    X_expanded = X[:, np.newaxis]  # Shape: (n_samples, 1, n_features)
-    centers_expanded = centers[np.newaxis, :]  # Shape: (1, n_centers, n_features)
-    # Calcular distancias entre todos los puntos
-    distances = np.sum((X_expanded - centers_expanded) ** 2, axis=2)
-    # Aplicar función gaussiana
-    return np.exp(-distances / (2 * sigma**2))
+    
+    # Calcular distancias por dimensión
+    phi = np.ones((n_samples, n_centers))
+    for d in range(n_dims):
+        x_d = X[:, d:d+1]  # Mantener dimensión
+        c_d = centers[:, d:d+1].T  # Transponer para broadcasting
+        dist_d = (x_d - c_d)**2
+        phi *= np.exp(-dist_d / (2 * sigma**2))
+    
+    return phi
 
 
 class RBF:
@@ -21,26 +27,36 @@ class RBF:
         """Inicializa la red RBF"""
         assert n_neurons > 0 and input_dim > 0
         
-        # Distribuir más centros en el rango para mejor aproximación
-        self.centers = np.array([
-            np.linspace(-3, 3, n_neurons) for _ in range(input_dim)
-        ]).T
+        # Distribuir centros estratégicamente en el espacio de entrada
+        self.centers = np.zeros((n_neurons, input_dim))
+        if n_neurons == 1:
+            self.centers[0] = np.zeros(input_dim)  # Centro en el origen
+        else:
+            # Distribuir centros uniformemente en una cuadrícula
+            points = np.linspace(-2, 2, int(np.ceil(np.sqrt(n_neurons))))
+            grid = np.array(np.meshgrid(*[points for _ in range(input_dim)]))
+            grid_points = grid.reshape(input_dim, -1).T
+            
+            # Seleccionar n_neurons puntos más cercanos al origen
+            distances = np.linalg.norm(grid_points, axis=1)
+            idx = np.argsort(distances)[:n_neurons]
+            self.centers = grid_points[idx]
         
-        # Ajustar sigma más fino para funciones con constantes
+        # Ajustar sigma basado en la separación entre centros
         if sigma is None:
             if n_neurons == 1:
-                # Para una sola neurona, usar un sigma predeterminado
-                self.sigma = 1.0
+                self.sigma = 2.0  # Cubrir todo el rango de entrada
             else:
-                d = np.mean([
-                    np.min([np.linalg.norm(c1-c2) 
-                           for j, c2 in enumerate(self.centers) if i != j])
-                    for i, c1 in enumerate(self.centers)
-                ])
-                self.sigma = d / np.sqrt(n_neurons)  # Ajuste más suave
+                # Calcular distancias entre todos los pares de centros usando numpy
+                dists = []
+                for i in range(n_neurons):
+                    for j in range(i + 1, n_neurons):
+                        dist = np.linalg.norm(self.centers[i] - self.centers[j])
+                        dists.append(dist)
+                self.sigma = np.mean(dists) / np.sqrt(2*n_neurons)
         else:
             self.sigma = sigma
-            
+
         self.target_function = target_function
         self.weights = None
         self.training_history = {
@@ -75,6 +91,9 @@ class RBF:
         phi = gaussian_rbf_matrix(X_train, self.centers, self.sigma)
         y_train = self.target_function(X_train)
         
+        # Inicializar pesos con pequeños valores aleatorios centrados en cero
+        self.weights = np.random.normal(0, 0.01, size=self.centers.shape[0])
+        
         # Limpiar historiales
         self.loss_history = []
         self.training_history['loss'] = []
@@ -82,11 +101,11 @@ class RBF:
         self.training_history['weights'] = []
         self.training_history['learning_rate'] = learning_rate
         
-        # Inicializar pesos aleatoriamente
-        self.weights = np.random.randn(self.centers.shape[0]) * 0.1  # Menor magnitud inicial
-        
         best_loss = float('inf')
         best_weights = None
+        patience = 50  # épocas sin mejora antes de reducir learning rate
+        no_improve_count = 0
+        min_lr = 1e-6
         
         for epoch in range(epochs):
             y_pred = phi @ self.weights
@@ -99,16 +118,30 @@ class RBF:
             self.training_history['epochs'].append(epoch)
             self.training_history['weights'].append(self.weights.copy())
             
-            # Guardar los mejores pesos
+            # Verificar mejora
             if loss < best_loss:
                 best_loss = loss
                 best_weights = self.weights.copy()
+                no_improve_count = 0
+            else:
+                no_improve_count += 1
             
+            # Reducir learning rate si no hay mejora
+            if no_improve_count >= patience and learning_rate > min_lr:
+                learning_rate *= 0.5
+                no_improve_count = 0
+                print(f"Reduciendo learning rate a {learning_rate}")
+            
+            # Early stopping
+            if learning_rate < min_lr:
+                print("Learning rate muy pequeño, deteniendo entrenamiento")
+                break
+                
             gradient = -2 * phi.T @ error / len(X_train)
             self.weights -= learning_rate * gradient
             
             if epoch % 100 == 0:
-                print(f"Época {epoch}, Loss: {loss:.6f}")
+                print(f"Época {epoch}, Loss: {loss:.6f}, LR: {learning_rate:.6f}")
         
         # Usar los mejores pesos encontrados
         self.weights = best_weights

@@ -106,18 +106,18 @@ class VistaConsola:
         print("="*70)
 
     def solicitar_pruebas(self):
-        n_vars = 4
+        n_neurons = 4  # Default number of neurons
+        n_vars = 2
         operaciones = [
-            ('cuadrado', 0, 1.0),      # x1^2
-            ('cubo', 1, 1.0),          # + x2^3
-            ('multiplicacion', 2, 1.0), # + x3
-            ('seno', 3, 1.0)           # + sin(x4)
+            ('cuadrado', 0, 1.0),      # x^2
+            ('cuadrado', 1, 1.0),      # + y^2
         ]
         
+        print("Función de prueba: x^2 + y^2")
         print("Funciones disponibles antes de agregar nueva función:")
         self.mostrar_funciones()
         
-        X_test, pred_pseudo, pred_gradient, valores_reales = self.controlador.ejecutar_pruebas(n_vars, operaciones)
+        X_test, pred_pseudo, pred_gradient, valores_reales = self.controlador.ejecutar_pruebas(n_vars, operaciones, n_neurons)
         
         if X_test is None:
             print("Error al crear la red")

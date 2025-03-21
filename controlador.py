@@ -23,8 +23,8 @@ class Controlador:
         return self.experto_funciones.mostrar_funcion(operaciones)
 
     def ejecutar_pruebas(self, n_vars, operaciones, n_neurons=5):
-        # Validar número mínimo de neuronas
-        n_neurons = max(1, n_neurons)  # Asegurar al menos 1 neurona
+        # Validar número mínimo de neuronas y no multiplicar por dimensiones
+        n_neurons = max(2, min(n_neurons, 10))  # Entre 2 y 10 neuronas total
         
         vars_used = set(op[1] for op in operaciones)
         n_vars_needed = max(vars_used) + 1
@@ -38,7 +38,8 @@ class Controlador:
             return None, None, None, None
 
         X_test = np.array([np.linspace(-2, 2, 5) for _ in range(n_vars)]).T
-        self.red = RBF(n_neurons=n_neurons, input_dim=n_vars, 
+        
+        self.red = RBF(n_neurons=n_neurons, input_dim=n_vars,
                       target_function=funcion1, sigma=None)
 
         self.red.calcular_pseudoInversa(X_test)
